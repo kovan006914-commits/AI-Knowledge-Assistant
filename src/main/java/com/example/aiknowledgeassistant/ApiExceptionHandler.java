@@ -1,0 +1,40 @@
+package com.example.aiknowledgeassistant;
+
+import com.example.aiknowledgeassistant.dto.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse> invalidInput(IllegalArgumentException error) {
+        return ResponseEntity.badRequest().body(new ApiResponse(false, error.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse> invalidJson(HttpMessageNotReadableException error) {
+        return ResponseEntity.badRequest().body(new ApiResponse(false, "请求正文不能为空，且必须是合法JSON"));
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ApiResponse> duplicate(DuplicateKeyException error) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiResponse(false, "用户名或邮箱已被使用"));
+    }
+
+    @ExceptionHandler({DataAccessException.class, IllegalStateException.class})
+    public ResponseEntity<ApiResponse> storageError(Exception error) {
+        log.error("用户注册写入失败", error);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "注册失败，请稍后重试"));
+    }
+}
