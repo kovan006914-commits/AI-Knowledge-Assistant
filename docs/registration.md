@@ -31,4 +31,4 @@ BCryptPasswordEncoder.matches 校验，新密码不得直接用SQL等值比较�
 UserServiceTest 使用模拟 Mapper 验证参数拒绝、哈希保存与插入失败；
 它不验证真实MySQL表结构或数据库唯一索引。
 
-本次验证环境：Maven 在线运行因 Maven Central 访问 Permission denied 失败；离线缓存无法解析父依赖。测试已添加，但尚未运行通过，真实MySQL联调也未执行。
+2026-10-17 本地验证：执行 `.\mvnw.cmd -B -U "-Dtest=UserServiceTest" test`，编译成功，4项测试全部通过（0失败、0错误、0跳过）。真实MySQL联调尚未执行，数据库表结构、密码字段容量及唯一索引仍需在部署前确认。
