@@ -1,6 +1,7 @@
 package com.example.aiknowledgeassistant;
 
 import com.example.aiknowledgeassistant.dto.ApiResponse;
+import com.example.aiknowledgeassistant.exception.InvalidCredentialsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -14,6 +15,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ApiExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiResponse> invalidCredentials(InvalidCredentialsException error) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse(false, error.getMessage()));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse> invalidInput(IllegalArgumentException error) {
@@ -33,8 +40,8 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({DataAccessException.class, IllegalStateException.class})
     public ResponseEntity<ApiResponse> storageError(Exception error) {
-        log.error("用户注册写入失败", error);
+        log.error("用户操作失败", error);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiResponse(false, "注册失败，请稍后重试"));
+                .body(new ApiResponse(false, "操作失败，请稍后重试"));
     }
 }
