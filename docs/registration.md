@@ -1,3 +1,6 @@
+# 1.0说明
+默认运行H2 demo模式；本页保留MySQL注册验证历史与迁移步骤。MySQL联调需显式启用mysql profile。1.0启动见README。
+
 # 注册接口
 
 POST /user/register，Content-Type: application/json

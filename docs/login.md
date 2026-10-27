@@ -1,3 +1,6 @@
+# 1.0说明
+会话登录已整合到网页。默认demo模式无需MySQL密码；只有mysql模式才需要SPRING_DATASOURCE_PASSWORD。下方旧环境验证记录仅描述当时结果，最新验收见Actions。
+
 # 会话登录
 
 本次沿用现有 BCrypt 和 Servlet 会话，不新增依赖。

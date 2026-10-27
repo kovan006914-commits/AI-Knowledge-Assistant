@@ -1,6 +1,7 @@
 package com.example.aiknowledgeassistant;
 
 import com.example.aiknowledgeassistant.dto.ApiResponse;
+import com.example.aiknowledgeassistant.exception.ApiProblem;
 import com.example.aiknowledgeassistant.exception.InvalidCredentialsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ApiExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    @ExceptionHandler(ApiProblem.class)
+    public ResponseEntity<ApiResponse> problem(ApiProblem error) {
+        return ResponseEntity.status(error.status()).body(new ApiResponse(false, error.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse> invalidParameter(Exception error) {
+        return ResponseEntity.badRequest().body(new ApiResponse(false, "参数格式不正确"));
+    }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiResponse> invalidCredentials(InvalidCredentialsException error) {

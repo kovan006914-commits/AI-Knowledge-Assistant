@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/user")
 public class AuthController {
-    static final String CURRENT_USER = AuthController.class.getName() + ".currentUser";
+    public static final String CURRENT_USER = AuthController.class.getName() + ".currentUser";
     private final UserService userService;
 
     public AuthController(UserService userService) {
