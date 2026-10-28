@@ -1,3 +1,6 @@
+# 1.0说明
+默认运行H2 demo模式；本页保留MySQL注册验证历史与迁移步骤。MySQL联调需显式启用mysql profile。1.0启动见README。
+
 # 注册接口
 
 POST /user/register，Content-Type: application/json
@@ -15,7 +18,7 @@ POST /user/register，Content-Type: application/json
 - 201：{"success":true,"message":"注册成功"}
 - 400：{"success":false,"message":"具体参数错误"}
 - 409：{"success":false,"message":"用户名或邮箱已被使用"}
-- 500：{"success":false,"message":"注册失败，请稍后重试"}
+- 500：{"success":false,"message":"操作失败，请稍后重试"}
 
 ## 数据库要求
 
@@ -26,7 +29,7 @@ POST /user/register，Content-Type: application/json
 `docs/sql/registration-email.sql` 提供 MySQL 8.0 一次性邮箱迁移：扩容并增加唯一索引，
 不会删除或改写现有用户行；有重复邮箱时会失败，需要先人工处理重复数据。
 迁移不是自动执行的，已有该索引的环境不要重复执行。多个 NULL 邮箱仍被允许。
-旧记录的明文密码不会自动转成哈希；当前仓库尚无登录功能，后续登录必须使用
+旧记录的明文密码不会自动转成哈希；登录接口已使用会话认证，详见 docs/login.md；密码校验必须使用
 BCryptPasswordEncoder.matches 校验，新密码不得直接用SQL等值比较。
 
 ## 验证
