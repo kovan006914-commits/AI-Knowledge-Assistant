@@ -10,6 +10,16 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
+import java.io.ByteArrayOutputStream;
+import java.awt.image.BufferedImage;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -113,5 +123,59 @@ class KnowledgeImportHttpTest {
         var response = upload(owner, "large.txt", bytes, true);
         assertEquals(413, response.statusCode(), response.body());
         assertTrue(data(response).path("message").asText().contains("5MB"), response.body());
+    }
+
+    private byte[] pdf(boolean imageOnly, boolean encrypted) throws Exception {
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+            try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+                if (imageOnly) {
+                    BufferedImage image = new BufferedImage(80, 40, BufferedImage.TYPE_INT_RGB);
+                    stream.drawImage(LosslessFactory.createFromImage(document, image), 60, 700);
+                } else {
+                    stream.beginText();
+                    stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                    stream.newLineAtOffset(60, 700);
+                    stream.showText("Controller receives requests for PDF testing.");
+                    stream.endText();
+                }
+            }
+            if (encrypted) {
+                var policy = new StandardProtectionPolicy("owner-secret", "user-secret", new AccessPermission());
+                policy.setEncryptionKeyLength(128);
+                document.protect(policy);
+            }
+            document.save(output);
+            return output.toByteArray();
+        }
+    }
+
+    @Test
+    void pdfTextCanBeImportedSearchedAndUsedForQuestions() throws Exception {
+        var response = upload(owner, "lesson.pdf", pdf(false, false), true);
+        assertEquals(201, response.statusCode(), response.body());
+        assertEquals(1, data(response).path("count").asInt());
+        var list = jsonRequest(owner, "GET", "/api/knowledge?q=Controller", null);
+        assertEquals(1, data(list).path("total").asInt(), list.body());
+        assertEquals("lesson.pdf", data(list).path("items").path(0).path("title").asText());
+        var answer = jsonRequest(owner, "POST", "/api/ask", Map.of("question", "Controller"));
+        assertEquals(200, answer.statusCode(), answer.body());
+        assertTrue(data(answer).path("answer").asText().contains("Controller"), answer.body());
+        assertEquals(0, data(jsonRequest(other, "GET", "/api/knowledge?q=Controller", null)).path("total").asInt());
+    }
+
+    @Test
+    void scannedCorruptedAndEncryptedPdfReturnClearErrors() throws Exception {
+        var scanned = upload(owner, "scan.pdf", pdf(true, false), true);
+        assertEquals(400, scanned.statusCode(), scanned.body());
+        assertTrue(data(scanned).path("message").asText().contains("扫描件"), scanned.body());
+        var corrupted = upload(owner, "broken.pdf", "not a pdf".getBytes(StandardCharsets.UTF_8), true);
+        assertEquals(400, corrupted.statusCode(), corrupted.body());
+        assertTrue(data(corrupted).path("message").asText().contains("PDF 读取失败"), corrupted.body());
+        var encrypted = upload(owner, "locked.pdf", pdf(false, true), true);
+        assertEquals(400, encrypted.statusCode(), encrypted.body());
+        assertTrue(data(encrypted).path("message").asText().contains("加密"), encrypted.body());
+        assertEquals(0, data(jsonRequest(owner, "GET", "/api/knowledge", null)).path("total").asInt());
     }
 }

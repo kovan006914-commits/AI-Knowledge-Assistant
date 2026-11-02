@@ -3,6 +3,7 @@ package com.example.aiknowledgeassistant.service;
 import com.example.aiknowledgeassistant.dto.KnowledgeRequest;
 import com.example.aiknowledgeassistant.exception.ApiProblem;
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -12,6 +13,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,23 +41,16 @@ public class KnowledgeImportService {
         String normalized = original.replace('\\', '/');
         String name = normalized.substring(normalized.lastIndexOf('/') + 1).strip();
         String lower = name.toLowerCase(Locale.ROOT);
-        if (!lower.endsWith(".txt") && !lower.endsWith(".md"))
-            throw new ApiProblem(400, "只支持 .txt 和 .md 文件");
+        boolean pdf = lower.endsWith(".pdf");
+        if (!lower.endsWith(".txt") && !lower.endsWith(".md") && !pdf)
+            throw new ApiProblem(400, "只支持 .txt、.md 和 .pdf 文件");
 
-        String text;
-        try {
-            text = StandardCharsets.UTF_8.newDecoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .decode(ByteBuffer.wrap(file.getBytes())).toString();
-        } catch (CharacterCodingException error) {
-            throw new ApiProblem(400, "文件不是有效的 UTF-8 编码，请转换后重试");
-        } catch (IOException error) {
-            throw new ApiProblem(400, "读取文件失败，请重新选择文件后重试");
-        }
+        String text = pdf ? readPdf(file) : readText(file);
         if (text.startsWith("\uFEFF")) text = text.substring(1);
         text = text.replace("\r\n", "\n").replace('\r', '\n');
-        if (text.isBlank()) throw new ApiProblem(400, "文件没有可导入的文字");
+        if (text.isBlank()) throw new ApiProblem(400, pdf
+                ? "PDF 中没有可提取的文字，可能是扫描件；请先使用 OCR 转换"
+                : "文件没有可导入的文字");
 
         List<Section> sections = lower.endsWith(".md") ? markdown(text) : plain(text);
         int count = 0;
@@ -65,6 +63,47 @@ public class KnowledgeImportService {
         }
         if (count == 0) throw new ApiProblem(400, "文件没有可导入的正文");
         return count;
+    }
+
+    private String readText(MultipartFile file) {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(file.getBytes())).toString();
+        } catch (CharacterCodingException error) {
+            throw new ApiProblem(400, "文件不是有效的 UTF-8 编码，请转换后重试");
+        } catch (IOException error) {
+            throw new ApiProblem(400, "读取文件失败，请重新选择文件后重试");
+        }
+    }
+
+    private String readPdf(MultipartFile file) {
+        try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+            if (!document.getCurrentAccessPermission().canExtractContent())
+                throw new ApiProblem(400, "PDF 不允许提取文字，请解除限制后重试");
+            LimitedWriter writer = new LimitedWriter();
+            new PDFTextStripper().writeText(document, writer);
+            return writer.text.toString();
+        } catch (InvalidPasswordException error) {
+            throw new ApiProblem(400, "PDF 已加密，请先解密后再导入");
+        } catch (TextLimitExceeded error) {
+            throw new ApiProblem(400, "PDF 提取的文字过多，请拆分文件后重试");
+        } catch (IOException error) {
+            throw new ApiProblem(400, "PDF 读取失败，请确认文件完整且格式正确");
+        }
+    }
+
+    private static final class TextLimitExceeded extends IOException {}
+    private static final class LimitedWriter extends Writer {
+        private static final int LIMIT = 2_000_000;
+        private final StringBuilder text = new StringBuilder();
+        @Override public void write(char[] chars, int offset, int length) throws IOException {
+            if (length > LIMIT - text.length()) throw new TextLimitExceeded();
+            text.append(chars, offset, length);
+        }
+        @Override public void flush() {}
+        @Override public void close() {}
     }
 
     private List<Section> plain(String text) {
