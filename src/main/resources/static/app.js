@@ -23,8 +23,9 @@ function authTab(mode) {
 async function api(url, options = {}) {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 45000);
   try {
-    const response = await fetch(url, {credentials: 'same-origin', ...options, signal: controller.signal,
-      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...options.headers}});
+    const headers = {'X-Requested-With': 'XMLHttpRequest', ...options.headers};
+    if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    const response = await fetch(url, {credentials: 'same-origin', ...options, signal: controller.signal, headers});
     const data = await response.json().catch(() => ({message: '服务器返回了无法识别的响应'}));
     if (!response.ok) {
       if (response.status === 401 && url !== '/user/login' && url !== '/user/me') {
@@ -111,6 +112,19 @@ $('logout').onclick = async () => {
 };
 $('nav-notes').onclick = () => tab('notes'); $('nav-ask').onclick = () => tab('ask');
 $('new-note').onclick = () => openNote(null);
+$('import-button').onclick = () => $('import-file').click();
+$('import-file').onchange = async () => {
+  const file = $('import-file').files[0];
+  if (!file) return;
+  $('import-button').disabled = true; notice('正在导入文件，请稍候…');
+  const formData = new FormData(); formData.append('file', file);
+  try {
+    const result = await api('/api/knowledge/import', {method:'POST', body:formData});
+    query = ''; page = 1; $('search').value = '';
+    await loadNotes(); notice('导入成功，共生成 ' + result.count + ' 条知识。');
+  } catch (error) { notice('导入失败：' + error.message); }
+  finally { $('import-button').disabled = false; $('import-file').value = ''; }
+};
 $('close-editor').onclick = $('cancel-editor').onclick = () => $('editor').close();
 $('editor-form').onsubmit = async event => {
   event.preventDefault(); $('save-note').disabled = true; message('editor-message', '');
@@ -160,3 +174,4 @@ $('ask-form').onsubmit = async event => {
   try { const data=await api('/user/me'); await enter(data.user); }
   catch { showAuth(); }
 })();
+

@@ -37,7 +37,7 @@
   <main>
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
     <section id="notes-panel">
-      <header class="page-header"><div><p class="eyebrow">积累，让知识生长</p><h1>我的知识库</h1><p class="muted">把值得记住的内容，放在这里。</p></div><button id="new-note" class="primary" type="button">＋ 新建知识</button></header>
+      <header class="page-header"><div><p class="eyebrow">积累，让知识生长</p><h1>我的知识库</h1><p class="muted">把值得记住的内容，放在这里。</p></div><div class="header-actions"><button id="import-button" class="secondary" type="button">导入文件</button><input id="import-file" type="file" accept=".txt,.md,text/plain,text/markdown" hidden><button id="new-note" class="primary" type="button">＋ 新建知识</button></div></header>
       <form id="search-form" class="search-bar"><label class="sr-only" for="search">搜索标题、正文或标签</label><input id="search" maxlength="100" placeholder="搜索标题、正文或标签…"><button class="secondary" type="submit">搜索</button><button id="clear-search" class="text-button" type="button">清除</button></form>
       <div class="list-heading"><h2 id="list-label">全部知识</h2><span id="result-count" class="muted"></span></div>
       <div id="notes-loading" role="status" hidden>正在读取知识条目…</div>
@@ -66,3 +66,4 @@
   </form>
 </dialog>
 </body></html>
+

@@ -5,15 +5,31 @@ import com.example.aiknowledgeassistant.dto.KnowledgeRequest;
 import com.example.aiknowledgeassistant.entity.KnowledgeItem;
 import com.example.aiknowledgeassistant.security.SessionUser;
 import com.example.aiknowledgeassistant.service.KnowledgeService;
+import com.example.aiknowledgeassistant.service.KnowledgeImportService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/knowledge")
 public class KnowledgeController {
     private final KnowledgeService service;
-    public KnowledgeController(KnowledgeService service) { this.service = service; }
+    private final KnowledgeImportService importService;
+    public KnowledgeController(KnowledgeService service, KnowledgeImportService importService) {
+        this.service = service;
+        this.importService = importService;
+    }
+
+    public record ImportResult(boolean success, int count, String message) {}
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImportResult> importFile(@RequestParam("file") MultipartFile file,
+            HttpServletRequest request) {
+        int count = importService.importFile(SessionUser.require(request).id(), file);
+        return ResponseEntity.status(201).body(new ImportResult(true, count, "文件导入成功"));
+    }
 
     @GetMapping
     public KnowledgeService.Page list(@RequestParam(defaultValue = "") String q,
@@ -40,3 +56,4 @@ public class KnowledgeController {
         return new ApiResponse(true, "已删除");
     }
 }
+
