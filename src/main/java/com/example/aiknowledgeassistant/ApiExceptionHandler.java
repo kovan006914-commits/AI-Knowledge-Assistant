@@ -12,10 +12,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse> fileTooLarge(MaxUploadSizeExceededException error) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(new ApiResponse(false, "文件不能超过 5MB"));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse> missingFile(MissingServletRequestPartException error) {
+        return ResponseEntity.badRequest().body(new ApiResponse(false, "请选择要导入的文件"));
+    }
 
     @ExceptionHandler(ApiProblem.class)
     public ResponseEntity<ApiResponse> problem(ApiProblem error) {
@@ -56,3 +69,4 @@ public class ApiExceptionHandler {
                 .body(new ApiResponse(false, "操作失败，请稍后重试"));
     }
 }
+
