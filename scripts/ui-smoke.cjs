@@ -39,12 +39,25 @@ const assert = require('node:assert/strict');
     page.once('dialog',dialog=>dialog.accept());
     await page.locator('#delete-note').click();
     await page.locator('#empty-state').waitFor();
+    await page.locator('#import-file').setInputFiles({
+      name:'spring.md', mimeType:'text/markdown',
+      buffer:Buffer.from('# Controller\n\nController 接收 HTTP 请求。\n\n# Service\n\nService 处理业务逻辑。\n')
+    });
+    await page.getByText('导入成功，共生成 2 条知识。').waitFor();
+    await page.getByRole('heading',{name:'spring.md - Controller',exact:true}).waitFor();
+    await page.locator('#search').fill('Controller');
+    await page.locator('#search-form button[type="submit"]').click();
+    await page.getByRole('heading',{name:'spring.md - Controller',exact:true}).waitFor();
+    await page.locator('#clear-search').click();
+    await page.locator('#import-file').setInputFiles({name:'bad.exe',mimeType:'application/octet-stream',buffer:Buffer.from('x')});
+    await page.getByText('导入失败：只支持 .txt 和 .md 文件').waitFor();
     await page.setViewportSize({width:390,height:844});
     await page.screenshot({path:'target/ui-mobile.png',fullPage:true});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await page.locator('#logout').click();
     await page.locator('#auth-form').waitFor();
     assert.deepEqual(errors,[]);
-    console.log('UI smoke passed: register/login/persistence/CRUD/retrieval/logout/mobile/XSS text rendering.');
+    console.log('UI smoke passed: register/login/persistence/CRUD/retrieval/file import/errors/logout/mobile/XSS text rendering.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
